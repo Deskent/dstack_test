@@ -4,6 +4,5 @@ Dockerfile
 /spam
 README.md
 /venv
-**db_data
 **logs
 **tests
