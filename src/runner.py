@@ -72,7 +72,7 @@ class DockerRunner:
         command: str,
         stderr,
         stdout,
-    ) -> 'CompletedProcess':
+    ) -> CompletedProcess:
         """Run docker with parameters."""
 
         logger.info(
@@ -80,7 +80,7 @@ class DockerRunner:
             f'\nError output: {stderr}\nStdout: {stdout}'
         )
 
-        result: 'CompletedProcess' = subprocess.run(
+        result: CompletedProcess = subprocess.run(
             args=[command],
             shell=True,
             stderr=stderr,
@@ -96,6 +96,7 @@ class DockerRunner:
 
         output_logs_file = LOGS_DIR / 'docker.logs'
         output_errors_file = LOGS_DIR / 'docker_errors.logs'
+
         stderr = open(output_errors_file, 'a', encoding='utf-8')
         stdout = open(output_logs_file, 'a', encoding='utf-8')
 
