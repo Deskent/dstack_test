@@ -7,6 +7,54 @@ from .config import logger, LOGS_DIR
 
 
 class DockerRunner:
+    """Run docker container with given arguments."""
+
+    def run(self):
+        params: argparse.Namespace = self._parse_arguments()
+
+        logger.info(f'Running docker with parameters: {params}')
+
+        output_logs_file = LOGS_DIR / 'docker.logs'
+        output_errors_file = LOGS_DIR / 'docker_errors.logs'
+
+        stderr = open(output_errors_file, 'a', encoding='utf-8')
+        stdout = open(output_logs_file, 'a', encoding='utf-8')
+
+        command: str = (
+            f'docker run {params.docker_image} {params.bash_command} '
+        )
+
+        driver: str | None = None
+        if params.aws_cloudwatch_group is not None:
+            driver = 'awslogs'
+        if params.aws_cloudwatch_stream is not None:
+            driver = 'awslogs-stream'
+
+        if all(
+            (
+                driver,
+                params.aws_access_key_id,
+                params.aws_secret_access_key,
+                params.aws_region,
+            )
+        ):
+            command += (
+                f'--log-driver={driver} '
+                f'--log-opt awslogs-region={params.aws_region} '
+                f'--log-opt awslogs-group={params.aws_cloudwatch_group} '
+                f'--log-opt awslogs-create-group=true'
+                f'--env AWS_ACCESS_KEY_ID={params.aws_access_key_id} '
+                f'--env AWS_SECRET_ACCESS_KEY={params.aws_secret_access_key} '
+            )
+            stderr = sys.stderr
+            stdout = sys.stdout
+
+        return self._run_docker(
+            command,
+            stderr=stderr,
+            stdout=stdout,
+        )
+
     def _parse_arguments(self):
         """Parse command line arguments."""
 
@@ -73,12 +121,9 @@ class DockerRunner:
         stderr,
         stdout,
     ) -> CompletedProcess:
-        """Run docker with parameters."""
+        """Run docker as subprocess with parameters."""
 
-        logger.info(
-            f'\n\n\t\tRunning docker command: {command}'
-            f'\nError output: {stderr}\nStdout: {stdout}'
-        )
+        logger.info(f'\n\n\t\tRunning docker command: {command}')
 
         result: CompletedProcess = subprocess.run(
             args=[command],
@@ -88,49 +133,3 @@ class DockerRunner:
         )
 
         return result
-
-    def run(self):
-        params: argparse.Namespace = self._parse_arguments()
-
-        logger.info(f'Running docker with parameters: {params}')
-
-        output_logs_file = LOGS_DIR / 'docker.logs'
-        output_errors_file = LOGS_DIR / 'docker_errors.logs'
-
-        stderr = open(output_errors_file, 'a', encoding='utf-8')
-        stdout = open(output_logs_file, 'a', encoding='utf-8')
-
-        command: str = (
-            f'docker run {params.docker_image} {params.bash_command} '
-        )
-
-        driver: str | None = None
-        if params.aws_cloudwatch_group is not None:
-            driver = 'awslogs'
-        if params.aws_cloudwatch_stream is not None:
-            driver = 'awslogs-stream'
-
-        if all(
-            (
-                driver,
-                params.aws_access_key_id,
-                params.aws_secret_access_key,
-                params.aws_region,
-            )
-        ):
-            command += (
-                f'--log-driver={driver} '
-                f'--log-opt awslogs-region={params.aws_region} '
-                f'--log-opt awslogs-group={params.aws_cloudwatch_group} '
-                f'--log-opt awslogs-create-group=true'
-                f'--env AWS_ACCESS_KEY_ID={params.aws_access_key_id} '
-                f'--env AWS_SECRET_ACCESS_KEY={params.aws_secret_access_key} '
-            )
-            stderr = sys.stderr
-            stdout = sys.stdout
-
-        return self._run_docker(
-            command,
-            stderr=stderr,
-            stdout=stdout,
-        )
